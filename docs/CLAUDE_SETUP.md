@@ -1,5 +1,18 @@
 # Claude Code local prototype setup
 
+For automatic local registration after `uv sync --locked`:
+
+```sh
+.venv/bin/safe-git-mcp setup --name project-a \
+  --repo /absolute/approved/standalone-test-repo --client eltex-claude --register
+```
+
+Use `--client claude` for standard Claude Code. Repeat with a new name/policy for
+each independent repository. Omit `--register` to preview the command. To diagnose
+an existing policy, run `safe-git-mcp doctor --policy /absolute/policy.toml` using
+the executable in this installation's `.venv/bin/`. Linked worktrees are explicitly
+rejected and never redirected to original history. The manual alternative follows.
+
 After installing at a trusted operator-owned path and reviewing the policy:
 
 ```sh

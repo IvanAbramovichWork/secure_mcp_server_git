@@ -47,3 +47,36 @@ Not run: other Python/Git versions (CI matrix is configured), Claude Code
 registration/red-team prompts, any separately approved external test repository,
 production data, a privileged authenticated broker, or OS/UID/mount/network
 isolation tests. No hardened-deployment acceptance or publication is claimed.
+
+## Deployment helper update — 2026-10-27
+
+Added operator-only `setup`/`doctor` commands. Initial CLI tests produced nine
+expected failures before implementation; four invalid-name cases already failed
+closed under the old parser. Setup now creates per-project absolute policies,
+preserves existing rules, previews or executes argv-only client registration,
+and runs a real official-client stdio handshake. Doctor identifies invalid policy,
+missing prerequisites and unsupported worktrees without following Git pointers.
+
+Fresh review found a policy-creation race; two tests reproduced new-file and
+symlink insertion during preflight (RED), then passed after retaining the original
+create/reuse decision and enforcing exclusive creation (GREEN). A missing-prlimit
+test initially patched os.access too broadly and masked Git availability; its
+fixture was narrowed to the prlimit path. No unresolved test failures remain.
+
+Final commands/results on the same local Python/Git versions:
+
+- `.venv/bin/pytest -q --tb=short`: **127 passed**, no skips or expected failures.
+- `.venv/bin/ruff check .`: passed.
+- `.venv/bin/ruff format --check .`: 30 files already formatted.
+- `.venv/bin/mypy src`: no issues in 13 source files.
+- `UV_CACHE_DIR=/tmp/safe-git-uv-cache uv build`: wheel and source distribution built.
+
+Tests cover synthetic setup, preserved/conflicting/malformed policies, tilde
+expansion, file permissions, unsupported worktree diagnostics, safe registration
+argv including spaces, suppressed client output, retained policies on client
+failure, missing prerequisites, policy symlinks, concurrent creation and sanitized
+handshake errors. Client registration is tested with a synthetic executable;
+actual `eltex-claude`/Claude Code installation is not available here. Successful
+helper registration means client CLI exit success; verify effective client state
+with `eltex-claude mcp list`. Production/ECSS10, linked-worktree support, and OS
+isolation remain outside this update. No real ECSS10 repository was accessed.

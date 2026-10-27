@@ -5,6 +5,51 @@ A standalone, read-only, policy-filtered Git history server for Linux, using the
 prototype. It minimizes Git data returned by this API; it does not isolate an
 agent from files accessible through other tools or processes.
 
+## Easier local deployment
+
+After cloning (or `git pull --ff-only` in an existing installation):
+
+```sh
+uv sync --locked
+.venv/bin/safe-git-mcp setup --name project-a \
+  --repo /absolute/path/to/approved-standalone-test-repo \
+  --client eltex-claude --register
+eltex-claude mcp list
+```
+
+`setup` expands CLI `~` paths, generates an absolute binding and full default
+policy at `~/.config/safe-git-mcp/project-a.toml` with private file permissions,
+checks prerequisites/repository initialization, and tests a real MCP stdio
+handshake before registration. The default client is `eltex-claude`; use
+`--client claude` for standard Claude Code. Omit `--register` to print the exact
+registration command without modifying client settings. Review the generated
+policy before using confidential data. Local mode still requires separate OS
+isolation for strong confidentiality.
+
+Repeat setup with another `--name` and `--repo` for each independent repository.
+Existing policies are preserved, including reviewed rules. A different binding or
+invalid existing policy is a conflict, never overwritten. Setup never removes
+existing client registrations; a duplicate registration may require operator
+review in the client. `--config-dir` selects another operator-managed directory.
+
+Diagnose an existing installation without pasting configuration or Git output:
+
+```sh
+.venv/bin/safe-git-mcp doctor --policy ~/.config/safe-git-mcp/policy.toml
+```
+
+Doctor returns a static reason code such as `POLICY_INVALID`, `PRLIMIT_MISSING`,
+`LINKED_WORKTREE_UNSUPPORTED`, `REPOSITORY_REJECTED` or `MCP_CONNECTION_FAILED`.
+It reads trusted startup metadata and does a handshake/list-tools request; it
+never retrieves file patches. A successful result does not prove the deployed
+client's permissions or OS isolation. Setup/doctor are operator commands, never
+MCP tools or agent-controlled repository selection.
+
+**Linked worktrees remain unsupported.** They are identified without opening the
+`.git` pointer or following it to original history. Setup will not silently bind
+a main checkout or weaken checks. Use an explicitly approved independent test
+repository; never edit the pointer to bypass this restriction.
+
 ## Development
 
 Requires Python 3.11+, Git (validated on 2.52.0), uv, and Linux util-linux
