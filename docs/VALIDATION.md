@@ -80,3 +80,47 @@ actual `eltex-claude`/Claude Code installation is not available here. Successful
 helper registration means client CLI exit success; verify effective client state
 with `eltex-claude mcp list`. Production/ECSS10, linked-worktree support, and OS
 isolation remain outside this update. No real ECSS10 repository was accessed.
+
+## Docker deployment update — 2026-10-27
+
+Built and exercised a real Linux amd64 Docker image using Engine 28.4.0. The
+container has Python 3.12.16 and Git 2.39.5. Official Python multi-platform base
+manifest is pinned to sha256:6dd8b6dab6b3adc7812bab69eca5dbdc1a5cc690ad28306d234ffb4ef8ac9753;
+local tested image ID is sha256:61679e68c71b952a8c31ddc864648298ba312a708141ae470533190af1577d2e.
+
+Three initial Docker tests failed before the image existed, then passed after
+building. Two further real-image checks verify default UID:GID 10001:10001 and
+successful `doctor` readiness. Review added fail-closed recursive read-only binds
+with explicit rprivate propagation and documented Docker/kernel prerequisites.
+
+Cloud build containers initially could not resolve package servers. The successful
+build used the platform's existing proxy, a build-only trusted CA secret and
+build-network routing. APT's downloader required the CA mount to be readable by
+its unprivileged identity; the public CA bundle is mounted mode 0444, never copied
+to the runtime. TLS, package signature and artifact verification stayed enabled.
+
+A full-suite run exposed Docker-client automatic proxy injection: 131 passed and
+one runtime-environment assertion failed. Image inspection confirmed proxy keys
+were absent from image configuration. The documented/tested runtime now explicitly
+clears upper/lowercase HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY values. The
+regression passed, followed by the complete successful run below.
+
+Final verification:
+
+- Real Docker image build succeeded with the environment's proxy/CA configuration.
+- `SAFE_GIT_DOCKER_TESTS=1 .venv/bin/pytest -q --tb=short`: **132 passed**, no skips.
+- `.venv/bin/ruff check .`: passed.
+- `.venv/bin/ruff format --check .`: 33 files already formatted.
+- `.venv/bin/mypy src`: no issues in 13 source files.
+- `UV_CACHE_DIR=/tmp/safe-git-uv-cache uv build`: wheel and source distribution built.
+
+Container tests use generated fake-secret repositories and the official SDK stdio
+client. They verify filtered responses, protected-path denial, runtime write
+failures, zero effective capabilities, no-new-privileges, no network route,
+non-root UID matching, absence of Docker socket/build CA/temporary CA config,
+cleared runtime proxy values, no runtime source checkout, and safe rejection of
+an unmounted linked-worktree pointer. CI has a separate image-build/Docker-test
+job; default native pytest marks the five Docker tests skipped unless opted in.
+No ECSS10 access occurred. No ARM runtime, actual eltex-claude registration,
+registry image publication, authenticated broker or whole-agent isolation was
+validated or claimed. Existing linked-worktree and provenance limits remain.

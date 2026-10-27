@@ -53,3 +53,11 @@ operator review of configuration; unsupported keys are not automatically removed
 No worktree redirection, OS-isolation deployment, privileged broker, or real
 production-repository validation is performed by these commands. Root-owned policy
 and executable placement remain an administrator responsibility in hardened mode.
+
+## Docker alternative
+
+See [DOCKER.md](DOCKER.md) for a self-contained stdio image and tested runtime
+restrictions. No host Python setup is needed for container execution. The policy
+uses `/repo` inside the container; the mounted repository remains read-only and
+requires matching ownership. Docker does not add linked-worktree support or the
+whole-agent confidentiality boundary.

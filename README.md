@@ -5,6 +5,20 @@ A standalone, read-only, policy-filtered Git history server for Linux, using the
 prototype. It minimizes Git data returned by this API; it does not isolate an
 agent from files accessible through other tools or processes.
 
+## Docker deployment
+
+Docker packages Python, Git, util-linux and the locked application dependencies:
+
+```sh
+docker build -t safe-git-mcp:local .
+```
+
+Use the [Docker guide](docs/DOCKER.md) for the external `/repo` policy, read-only
+mounts, UID matching, preflight checks and `eltex-claude` registration. Runtime
+networking is disabled and no ports are exposed. Linked worktrees remain
+unsupported. This contains the server; it does not isolate a host-side agent or
+implement the separate privileged broker.
+
 ## Easier local deployment
 
 After cloning (or `git pull --ff-only` in an existing installation):

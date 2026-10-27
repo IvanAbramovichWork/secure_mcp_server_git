@@ -1,0 +1,9 @@
+# Allow only build inputs. Never send .git, local envs, policies, credentials or fixtures.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!src/
+!src/safe_git_mcp/
+!src/safe_git_mcp/*.py
