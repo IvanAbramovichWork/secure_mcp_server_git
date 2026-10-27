@@ -1,0 +1,28 @@
+# Replace with a separately approved synthetic/test repository; never use real secrets in tests.
+# Keep the deployed policy and executable outside the agent-writable project.
+repository_root = "/srv/safe-git/approved-test-repository"
+policy_mode = "denylist"
+max_commits = 100
+max_changed_files = 500
+max_diff_bytes = 262144
+max_file_bytes = 131072
+max_response_bytes = 1048576
+max_context_lines = 10
+max_runtime_seconds = 8
+max_subprocesses = 2048
+return_commit_messages = false
+return_author_identity = false
+
+deny_paths = [
+  "env/**", "root/etc/ecss/**", "apps/sorm*/**", "apps/lpm*/**",
+  "apps/ecss_storekeeper/config/**", "_deps/ecss_license_agent/**",
+  "**/*.pem", "**/*.secret.exs", "**/.env", "**/.env.*",
+  "**/.erlang.cookie", "**/.erlang.crypt", ".mcp.json",
+  "**/settings.local.json", ".claude/**"
+]
+allow_exceptions = []
+# Optional exact UTF-8 substrings: reject content-bearing operations on a match.
+# This is a heuristic, not a confidentiality boundary; never store real secrets here.
+quarantine_literals = ["-----BEGIN PRIVATE KEY-----", "ECSS10_TEST_SECRET_DO_NOT_EXPOSE_"]
+# Stricter mode: policy_mode="allowlist" and allow_paths=["apps/core/**"].
+# Deny rules still apply within an allowlist. Exceptions must be exact paths.
