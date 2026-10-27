@@ -5,3 +5,8 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 dist/
+# Per-project Compose configuration can contain private host paths.
+.env
+.env.*
+*.env
+!/.env.example

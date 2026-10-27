@@ -5,6 +5,24 @@ A standalone, read-only, policy-filtered Git history server for Linux, using the
 prototype. It minimizes Git data returned by this API; it does not isolate an
 agent from files accessible through other tools or processes.
 
+## Compose deployment
+
+Use the shared `compose.yaml` with a per-project env file. Copy `.env.example` to
+an operator-managed location, fill PROJECT_ROOT/POLICY_FILE and HOST_UID/HOST_GID,
+and keep the Docker TOML policy binding at `/repo`:
+
+```sh
+docker compose --file compose.yaml --env-file /absolute/path/project-a.env build safe-git
+docker compose --file compose.yaml --env-file /absolute/path/project-a.env \
+  run --rm --no-deps -T safe-git doctor --policy /policy/policy.toml
+```
+
+The [Compose guide](docs/COMPOSE.md) includes safe file creation, complete Claude
+registration and several-project examples. No host Python installation is needed.
+Environment files supply interpolation only; unrelated variables are not injected
+into the service. Runtime restrictions are centralized in Compose. Existing
+linked-worktree and whole-agent-isolation limitations apply.
+
 ## Docker deployment
 
 Docker packages Python, Git, util-linux and the locked application dependencies:

@@ -61,3 +61,9 @@ restrictions. No host Python setup is needed for container execution. The policy
 uses `/repo` inside the container; the mounted repository remains read-only and
 requires matching ownership. Docker does not add linked-worktree support or the
 whole-agent confidentiality boundary.
+
+## Compose alternative
+
+[COMPOSE.md](COMPOSE.md) centralizes the container flags and uses `.env.example`
+for per-project host paths and UID/GID interpolation. It preserves read-only
+mounts and the fixed `/repo` policy binding without injecting the entire env file.

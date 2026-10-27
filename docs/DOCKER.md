@@ -1,5 +1,8 @@
 # Docker stdio deployment
 
+For shorter per-project commands, use [Compose and environment files](COMPOSE.md).
+It shares the same image and restrictions described here.
+
 Requires Linux kernel 5.12+ and Docker Engine 25+ (tested with Engine 28.4.0),
 plus an approved standalone test repository. Python,
 uv, Git and util-linux are installed inside the image; no host Python environment

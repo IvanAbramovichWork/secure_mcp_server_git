@@ -124,3 +124,44 @@ job; default native pytest marks the five Docker tests skipped unless opted in.
 No ECSS10 access occurred. No ARM runtime, actual eltex-claude registration,
 registry image publication, authenticated broker or whole-agent isolation was
 validated or claimed. Existing linked-worktree and provenance limits remain.
+
+## Compose/per-project env update — 2026-10-27
+
+Added a shared stdio Compose service, `.env.example`, local env-file ignore rules,
+per-project/operator instructions and CI coverage. Initial tests produced five
+expected failures before Compose configuration existed; the missing-source case
+already failed closed. New configuration then passed six tests. Concurrent project
+coverage and actual Engine-option inspection brought Compose coverage to eight.
+A targeted RED test caught an overbroad env-template whitelist; anchoring the
+exception to the root `.env.example` kept nested private env examples ignored.
+
+Verified with Docker Compose v2.40.3 and the previously built service image:
+
+- `SAFE_GIT_DOCKER_TESTS=1 .venv/bin/pytest -q --tb=short`: **140 passed**, no skips.
+- `.venv/bin/ruff check .`: passed.
+- `.venv/bin/ruff format --check .`: 36 files already formatted.
+- `.venv/bin/mypy src`: no issues in 13 source files.
+- `UV_CACHE_DIR=/tmp/safe-git-uv-cache uv build`: wheel/sdist built.
+- Actual `docker compose build safe-git` with a temporary cloud-specific build
+  override succeeded, reusing verified image layers. The unconfigured build first
+  failed because build-container DNS cannot reach package services here. The
+  successful override supplied existing proxy routing and a build-only trusted CA,
+  as in prior Docker validation; no TLS/signature/checksum checks were disabled.
+  The tracked runtime Compose configuration retains `network_mode: none`.
+
+Real Compose tests exercise SDK initialize/list-tools/filtered patch/denied path,
+Docker policy/host paths containing spaces, env-file parsing without whole-file
+container injection, cleared proxy values, UID matching, no network route,
+read-only filesystem writes, dropped capabilities, no-new-privileges, successful
+doctor, missing-variable diagnostics, missing bind paths not created, ignored env
+files with tracked root template, and two concurrent independently bound projects.
+Engine inspection confirms ReadOnlyForceRecursive, rprivate propagation, 64 PIDs,
+256 MiB memory, one CPU, noexec/nosuid 16 MiB tmpfs, stdin open with no TTY, two
+read-only mounts and the selected UID:GID. Test-created containers are removed.
+
+Fresh review found no actionable defect. Standard Compose shell-variable precedence
+is documented: inherited PROJECT_ROOT/POLICY_FILE/UID/GID/image settings override
+an env file, so operators must clear stale exports when selecting a project.
+All repositories used were generated synthetic fixtures with fake secrets. No
+ECSS10 access occurred. Actual eltex-claude registration, privileged broker and
+whole-agent isolation remain unverified; linked-worktree support is unchanged.

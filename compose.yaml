@@ -1,0 +1,46 @@
+services:
+  safe-git:
+    image: ${SAFE_GIT_IMAGE:-safe-git-mcp:local}
+    build:
+      context: .
+    pull_policy: never
+    user: "${HOST_UID:?Set HOST_UID to the non-root repository owner UID}:${HOST_GID:?Set HOST_GID to the repository owner GID}"
+    stdin_open: true
+    tty: false
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    # Explicitly override Docker-client auto-injected proxies. Never use env_file here.
+    environment:
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      NO_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+      no_proxy: ""
+    volumes:
+      - type: bind
+        source: ${PROJECT_ROOT:?Set PROJECT_ROOT to an absolute approved standalone repository path}
+        target: /repo
+        read_only: true
+        bind:
+          propagation: rprivate
+          recursive: readonly
+          create_host_path: false
+      - type: bind
+        source: ${POLICY_FILE:?Set POLICY_FILE to an absolute operator-managed policy file path}
+        target: /policy/policy.toml
+        read_only: true
+        bind:
+          create_host_path: false
+    command: ["--policy", "/policy/policy.toml"]
