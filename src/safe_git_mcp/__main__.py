@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from .config import Policy
+from .config import Policy, apply_project_denies
 
 
 def main() -> None:
@@ -51,7 +51,9 @@ def main() -> None:
     try:
         from .server import create_server
 
-        create_server(Policy.load(args.policy.expanduser().absolute())).run(transport="stdio")
+        create_server(apply_project_denies(Policy.load(args.policy.expanduser().absolute()))).run(
+            transport="stdio"
+        )
     except KeyboardInterrupt:
         pass
     except Exception:

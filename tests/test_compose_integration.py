@@ -24,11 +24,19 @@ def environment():
     return {
         k: v
         for k, v in os.environ.items()
-        if k not in {"PROJECT_ROOT", "POLICY_FILE", "HOST_UID", "HOST_GID", "SAFE_GIT_IMAGE"}
+        if k
+        not in {
+            "PROJECT_ROOT",
+            "POLICY_FILE",
+            "HOST_UID",
+            "HOST_GID",
+            "SAFE_GIT_IMAGE",
+            "SAFE_GIT_PROJECT_DENY_PATHS",
+        }
     }
 
 
-def prepare(repo, tmp_path, *, missing_repo=False, missing_variable=False):
+def prepare(repo, tmp_path, *, missing_repo=False, missing_variable=False, project_denies=None):
     policy = tmp_path / "policy with spaces.toml"
     policy.write_text('repository_root="/repo"\n')
     envfile = tmp_path / "project with spaces.env"
@@ -40,6 +48,8 @@ def prepare(repo, tmp_path, *, missing_repo=False, missing_variable=False):
     )
     if not missing_variable:
         text += f"PROJECT_ROOT='{root}'\n"
+    if project_denies is not None:
+        text += f"SAFE_GIT_PROJECT_DENY_PATHS='{project_denies}'\n"
     envfile.write_text(text)
     return [
         "compose",
@@ -53,14 +63,17 @@ def prepare(repo, tmp_path, *, missing_repo=False, missing_variable=False):
 
 
 @asynccontextmanager
-async def client(repo, tmp_path):
-    args = prepare(repo, tmp_path)
+async def client(repo, tmp_path, *, project_denies=None, startup_project_denies=None):
+    args = prepare(repo, tmp_path, project_denies=project_denies)
+    startup_env = environment()
+    if startup_project_denies is not None:
+        startup_env["SAFE_GIT_PROJECT_DENY_PATHS"] = startup_project_denies
     with (tmp_path / "compose-stderr").open("w+") as errors:
         async with stdio_client(
             StdioServerParameters(
                 command="docker",
                 args=[*args, "run", "--rm", "--no-deps", "-T", "--interactive", "safe-git"],
-                env=environment(),
+                env=startup_env,
             ),
             errlog=errors,
         ) as streams:
@@ -273,3 +286,50 @@ def test_compose_engine_receives_readonly_and_resource_limits(repo, tmp_path):
     finally:
         removed = run("rm", "--stop", "--force", "safe-git")
         assert removed.returncode == 0, removed.stdout + removed.stderr
+
+
+@pytest.mark.parametrize("source", ["env-file", "mcp-env"])
+async def test_compose_project_denies_from_env_file_or_mcp_env(repo, tmp_path, source):
+    repo.write("internal/private.txt", "PROJECT_TEST_SECRET_NOT_FOR_MCP\n")
+    repo.write("public.txt", "safe public\n")
+    repo.commit()
+    kwargs = (
+        {"project_denies": '["internal/**"]'}
+        if source == "env-file"
+        else {"startup_project_denies": '["internal/**"]'}
+    )
+    async with client(repo, tmp_path, **kwargs) as session:
+        r = await session.call_tool("git_show_commit", {"commit": "HEAD"})
+        assert not r.is_error
+        assert [f["path"] for f in r.structured_content["files"]] == ["public.txt"]
+        assert "PROJECT_TEST_SECRET_NOT_FOR_MCP" not in r.model_dump_json()
+        for path in ["internal/private.txt", "env/production.config"]:
+            r = await session.call_tool("git_file_history", {"path": path})
+            assert r.is_error
+            assert r.structured_content["error"]["code"] == "ACCESS_DENIED"
+
+
+@pytest.mark.parametrize("raw", ["", "null", SECRET])
+def test_compose_invalid_project_rules_fail_startup(repo, tmp_path, raw):
+    args = prepare(repo, tmp_path, project_denies=raw)
+    r = subprocess.run(
+        [
+            "docker",
+            *args,
+            "run",
+            "--rm",
+            "--no-deps",
+            "-T",
+            "safe-git",
+            "doctor",
+            "--policy",
+            "/policy/policy.toml",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=35,
+        env=environment(),
+    )
+    assert r.returncode == 1
+    assert json.loads(r.stdout)["code"] == "PROJECT_DENIES_INVALID"
+    assert SECRET not in r.stdout + r.stderr

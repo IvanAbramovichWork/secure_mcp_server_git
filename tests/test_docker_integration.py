@@ -57,12 +57,17 @@ def arguments(root, policy):
 
 
 @asynccontextmanager
-async def container_client(repo, tmp_path):
+async def container_client(repo, tmp_path, *, project_denies=None):
     policy = tmp_path / "docker-policy.toml"
     policy.write_text('repository_root="/repo"\n')
+    extra_args = (
+        [] if project_denies is None else ["--env", "SAFE_GIT_PROJECT_DENY_PATHS=" + project_denies]
+    )
     with (tmp_path / "docker-stderr").open("w+") as errors:
         async with stdio_client(
-            StdioServerParameters(command="docker", args=[*arguments(repo.root, policy), IMAGE]),
+            StdioServerParameters(
+                command="docker", args=[*arguments(repo.root, policy), *extra_args, IMAGE]
+            ),
             errlog=errors,
         ) as streams:
             async with ClientSession(*streams, read_timeout_seconds=20) as session:
@@ -181,3 +186,14 @@ def test_docker_doctor_confirms_real_stdio_readiness(repo, tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     assert json.loads(r.stdout)["code"] == "READY"
     assert SECRET not in r.stdout + r.stderr
+
+
+async def test_docker_explicit_project_env_adds_denials(repo, tmp_path):
+    repo.write("internal/private.txt", "PROJECT_TEST_SECRET_NOT_FOR_MCP\n")
+    repo.write("public.txt", "safe public\n")
+    repo.commit()
+    async with container_client(repo, tmp_path, project_denies='["internal/**"]') as session:
+        r = await session.call_tool("git_show_commit", {"commit": "HEAD"})
+        assert not r.is_error
+        assert [f["path"] for f in r.structured_content["files"]] == ["public.txt"]
+        assert "PROJECT_TEST_SECRET_NOT_FOR_MCP" not in r.model_dump_json()

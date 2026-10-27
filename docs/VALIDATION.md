@@ -165,3 +165,43 @@ an env file, so operators must clear stale exports when selecting a project.
 All repositories used were generated synthetic fixtures with fake secrets. No
 ECSS10 access occurred. Actual eltex-claude registration, privileged broker and
 whole-agent isolation remain unverified; linked-worktree support is unchanged.
+
+## Additional project-denies update — 2026-10-27
+
+Implemented startup-only `SAFE_GIT_PROJECT_DENY_PATHS` JSON-array restrictions via
+standard MCP registration environment. Policy authorization is the intersection
+of the unchanged operator decision and a separate project-deny decision with no
+allow exceptions. Runtime rules append to any operator project-deny entries and
+cannot replace binding, limits, allowlist, deny list or exception settings.
+
+Test-first evidence: 24 policy tests failed before implementation and passed
+following bounded/immutable composition; four native startup/stdout/doctor/setup
+regressions failed before wiring and then passed. Six new real Docker/Compose
+cases failed against the old image/forwarding and passed after rebuilding and
+adding the explicit Compose mapping. Explicit empty values are preserved and
+rejected; unset values alone default to `[]`. Follow-up checks cover preserved
+operator TOML project rules, invalid-input non-disclosure, no reads of a missing
+project-denied blob, explicit denied path arguments and forwarding to doctor's
+handshake child. Setup serializes original operator policy, never runtime extras.
+
+Fresh independent security review found no actionable findings and ran a focused
+65-test synthetic suite successfully, plus boundary/monotonicity checks. Rebuilt
+real image ID: sha256:4add8c0e478e5bbc78875674308679fb76dcf8eae3a2c043ddc0af632e5bd717.
+The build used supported platform proxy routing and a build-only trusted CA with
+TLS/signature/checksum verification preserved.
+
+Final commands/results:
+
+- `SAFE_GIT_DOCKER_TESTS=1 .venv/bin/pytest -q --tb=short`: **180 passed**, no skips.
+- `.venv/bin/ruff check .`: passed.
+- `.venv/bin/ruff format --check .`: 39 files already formatted.
+- `.venv/bin/mypy src`: no issues in 13 source files.
+- `UV_CACHE_DIR=/tmp/safe-git-uv-cache uv build`: wheel/sdist built.
+
+Every history API, operator exception precedence and allowlist monotonicity are
+covered. Real clients exercise native environment, direct Docker --env, Compose
+env-file and registration-process environment; malformed JSON/types/globs/counts/
+bytes refuse startup without echo. No ECSS10 repository was accessed. Operator
+policy remains mandatory. Actual Claude UI project-config approval/registration,
+privileged broker, provenance classification and whole-agent isolation remain
+outside this validation. Existing linked-worktree limitation is unchanged.

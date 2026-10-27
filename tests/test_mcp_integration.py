@@ -9,16 +9,23 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 
 @asynccontextmanager
-async def client(repo, tmp_path, *, max_response_bytes=1048576):
+async def client(
+    repo, tmp_path, *, max_response_bytes=1048576, project_denies=None, policy_extra=""
+):
     policy = tmp_path / "policy.toml"
     policy.write_text(
         f'repository_root = "{repo.root}"\nmax_response_bytes = {max_response_bytes}\n'
+        + policy_extra
     )
     stderr = tmp_path / "server-stderr"
     with stderr.open("w+") as errors:
         async with stdio_client(
             StdioServerParameters(
-                command=sys.executable, args=["-m", "safe_git_mcp", "--policy", str(policy)]
+                command=sys.executable,
+                args=["-m", "safe_git_mcp", "--policy", str(policy)],
+                env={}
+                if project_denies is None
+                else {"SAFE_GIT_PROJECT_DENY_PATHS": project_denies},
             ),
             errlog=errors,
         ) as streams:
@@ -90,3 +97,33 @@ async def test_complete_mcp_envelope_is_bounded(repo, tmp_path):
             assert result.structured_content["error"]["code"] == "OUTPUT_LIMIT"
         else:
             assert len(result.model_dump_json(by_alias=True, exclude_none=True).encode()) <= 1000
+
+
+async def test_stdio_project_env_only_adds_denials(repo, tmp_path):
+    repo.write("internal/private.txt", "PROJECT_TEST_SECRET_NOT_FOR_MCP\n")
+    repo.write(".env.example", "PROJECT_TEST_SECRET_NOT_FOR_MCP\n")
+    repo.write("public.txt", "safe public\n")
+    repo.commit()
+    async with client(
+        repo,
+        tmp_path,
+        project_denies='["internal/**",".env.example"]',
+        policy_extra='allow_exceptions=[".env.example"]\n',
+    ) as session:
+        for name, args in [
+            ("git_log", {}),
+            ("git_show_commit", {"commit": "HEAD"}),
+            ("git_diff", {"base": repo.git("rev-parse", "HEAD^"), "head": "HEAD"}),
+            ("git_changed_files", {"base": repo.git("rev-parse", "HEAD^"), "head": "HEAD"}),
+        ]:
+            r = await session.call_tool(name, args)
+            assert not r.is_error
+            assert "public.txt" in r.model_dump_json()
+            assert "internal/private.txt" not in r.model_dump_json()
+            assert ".env.example" not in r.model_dump_json()
+            assert "PROJECT_TEST_SECRET_NOT_FOR_MCP" not in r.model_dump_json()
+        for path in ["internal/private.txt", ".env.example", "env/production.config"]:
+            for tool in ["git_file_history", "git_blame"]:
+                r = await session.call_tool(tool, {"path": path})
+                assert r.is_error
+                assert r.structured_content["error"]["code"] == "ACCESS_DENIED"

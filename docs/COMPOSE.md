@@ -106,7 +106,12 @@ only its selected repository at `/repo` and its own policy. Tests exercise two
 independent synthetic projects concurrently. Do not add mounts for all projects
 to a shared instance or expose repository selection through MCP tool arguments.
 
-The env file supplies Compose interpolation only. It is not declared as service
+The env file supplies Compose interpolation; the optional
+`SAFE_GIT_PROJECT_DENY_PATHS` JSON array is the one dedicated project input forwarded
+to the server. See [PROJECT_DENIES.md](PROJECT_DENIES.md) for complete `.mcp.json`
+examples and additive-only semantics. An unset value defaults to `[]`; an explicit
+empty/invalid value fails startup. The registration environment takes precedence
+over env-file values, so use one source for the optional list. It is not declared as service
 `env_file`, so unrelated variables and host paths are not injected into the
 container. Proxy variables are explicitly emptied to override Docker-client
 proxy injection. Shared settings enforce a read-only root and recursive read-only

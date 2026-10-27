@@ -5,6 +5,22 @@ A standalone, read-only, policy-filtered Git history server for Linux, using the
 prototype. It minimizes Git data returned by this API; it does not isolate an
 agent from files accessible through other tools or processes.
 
+## Additional project denies
+
+A project can add restrictions through the standard `.mcp.json` registration `env`:
+
+```json
+"env": {
+  "SAFE_GIT_PROJECT_DENY_PATHS": "[\"internal/**\", \"notes/private/**\"]"
+}
+```
+
+The mandatory operator policy remains enforced. Project denies also override
+operator allow exceptions, apply to every tool and cannot change the repository
+or limits. Malformed rules refuse startup. The [project-denies guide](docs/PROJECT_DENIES.md)
+has complete native and Compose `.mcp.json` examples, direct Docker forwarding,
+limits and trust caveats. Rebuild the image and reconnect after updating.
+
 ## Compose deployment
 
 Use the shared `compose.yaml` with a per-project env file. Copy `.env.example` to

@@ -20,6 +20,8 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m,mode=1777
     # Explicitly override Docker-client auto-injected proxies. Never use env_file here.
     environment:
+      # Only this optional project input crosses the boundary; never inject the full env file.
+      SAFE_GIT_PROJECT_DENY_PATHS: ${SAFE_GIT_PROJECT_DENY_PATHS-[]}
       HTTP_PROXY: ""
       HTTPS_PROXY: ""
       ALL_PROXY: ""

@@ -157,3 +157,11 @@ CI job builds the image and explicitly executes them; a failed build/runtime is
 not treated as a passing test. The daemon must see the same bind-mount filesystem
 paths as the test runner. SELinux hosts may require administrator-reviewed mount
 labels; do not disable enforcement globally to make the test pass.
+
+## Additional project rules
+
+For direct Docker registration, set `SAFE_GIT_PROJECT_DENY_PATHS` to a JSON array
+in the client process environment and add `--env SAFE_GIT_PROJECT_DENY_PATHS` to
+the `docker run` flags. Compose handles forwarding explicitly. These additions
+cannot weaken the mandatory mounted policy; see [PROJECT_DENIES.md](PROJECT_DENIES.md).
+Rebuild the image and reconnect when upgrading to use this startup option.

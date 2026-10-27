@@ -14,6 +14,7 @@ def cli(*args, env=None):
         [sys.executable, "-m", "safe_git_mcp", *map(str, args)],
         capture_output=True,
         text=True,
+        input="",
         timeout=20,
         env=env,
     )
@@ -277,3 +278,46 @@ def test_setup_preserves_malformed_existing_policy(repo, tmp_path):
     assert json.loads(r.stdout)["code"] == "POLICY_CONFLICT"
     assert p.read_text() == SECRET
     assert SECRET not in r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("command", ["doctor", "setup"])
+def test_project_denies_invalid_startup_is_diagnosed_before_setup_writes(repo, tmp_path, command):
+    env = {**os.environ, "SAFE_GIT_PROJECT_DENY_PATHS": SECRET}
+    config = tmp_path / "new-config"
+    args = (
+        ["--policy", policy_file(repo, tmp_path)]
+        if command == "doctor"
+        else ["--repo", repo.root, "--name", "demo", "--config-dir", config]
+    )
+    r = cli(command, *args, env=env)
+    assert r.returncode == 1
+    assert json.loads(r.stdout)["code"] == "PROJECT_DENIES_INVALID"
+    assert SECRET not in r.stdout + r.stderr
+    assert not config.exists()
+
+
+def test_setup_does_not_persist_runtime_project_rules(repo, tmp_path):
+    config = tmp_path / "config"
+    env = {**os.environ, "SAFE_GIT_PROJECT_DENY_PATHS": '["internal/**"]'}
+    r = cli("setup", "--repo", repo.root, "--name", "demo", "--config-dir", config, env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    policy = Policy.load(config / "demo.toml")
+    assert policy.allows("internal/a")
+    assert not policy.allows("env/private.config")
+
+
+def test_server_rejects_invalid_project_env_without_echo(repo, tmp_path):
+    policy = policy_file(repo, tmp_path)
+    r = cli("--policy", policy, env={**os.environ, "SAFE_GIT_PROJECT_DENY_PATHS": SECRET})
+    assert r.returncode == 1
+    assert SECRET not in r.stdout + r.stderr
+
+
+def test_doctor_handshake_child_receives_project_startup_env(repo, tmp_path, monkeypatch):
+    from safe_git_mcp.deployment import DeploymentError, handshake
+
+    monkeypatch.setenv("SAFE_GIT_PROJECT_DENY_PATHS", SECRET)
+    with pytest.raises(DeploymentError) as error:
+        handshake(policy_file(repo, tmp_path))
+    assert error.value.code == "MCP_CONNECTION_FAILED"
+    assert SECRET not in str(error.value)

@@ -57,3 +57,11 @@ independent managed controls. Block direct host/remote Git access, developer
 credentials, SSH agents and privileged sockets. Denying `.git` alone leaves
 protected current files exposed. Same-UID local stdio does not enforce these
 controls; use whole-process OS isolation for confidential deployment.
+
+## Project-level additional denies
+
+Standard `.mcp.json` registration `env` can provide
+`SAFE_GIT_PROJECT_DENY_PATHS` as a JSON array string. This only narrows the mandatory
+operator policy and never grants previously forbidden paths. See
+[PROJECT_DENIES.md](PROJECT_DENIES.md) for complete native and Compose examples and
+the limits of project-editable launch configurations.

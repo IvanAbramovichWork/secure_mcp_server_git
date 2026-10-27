@@ -45,3 +45,10 @@ external test repository was supplied; validation uses generated fixtures only.
 
 Report a suspected issue privately to the repository owner, using a minimal
 synthetic reproduction and fake data. Do not attach production secrets or history.
+
+Optional startup project denies are bounded, validated and composed as an
+intersection with operator authorization, after operator allow exceptions. They
+are never MCP arguments and cannot replace the policy/binding/limits. Removing
+optional additions can reveal operator-approved content, so required restrictions
+must remain operator-managed. A project-writable launch configuration can change
+the command entirely; this feature does not make that configuration trustworthy.

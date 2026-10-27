@@ -16,10 +16,11 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 from .audit import TOOLS
 from .backend import Backend
-from .config import Policy
+from .config import PROJECT_DENIES_ENV, Policy, apply_project_denies
 
 MESSAGES = {
     "READY": "Policy, repository initialization and MCP stdio handshake passed.",
+    "PROJECT_DENIES_INVALID": "Project deny rules must be a bounded JSON array of valid Git-path globs; values are not disclosed.",
     "POLICY_INVALID": "Policy missing, unreadable or invalid. Use an absolute repository_root, not ~.",
     "GIT_MISSING": "Git must be available in /usr/bin or /bin.",
     "PRLIMIT_MISSING": "Install util-linux: /usr/bin/prlimit must be executable.",
@@ -49,6 +50,13 @@ def load_policy(path: Path) -> Policy:
         raise DeploymentError("POLICY_INVALID") from None
 
 
+def project_policy(policy: Policy) -> Policy:
+    try:
+        return apply_project_denies(policy)
+    except Exception:
+        raise DeploymentError("PROJECT_DENIES_INVALID") from None
+
+
 def check_repository(policy: Policy) -> None:
     if not shutil.which("git", path="/usr/bin:/bin"):
         raise DeploymentError("GIT_MISSING")
@@ -75,6 +83,9 @@ async def _handshake(policy: Path) -> None:
             StdioServerParameters(
                 command=sys.executable,
                 args=["-m", "safe_git_mcp", "--policy", str(policy)],
+                env={PROJECT_DENIES_ENV: os.environ[PROJECT_DENIES_ENV]}
+                if PROJECT_DENIES_ENV in os.environ
+                else {},
             ),
             errlog=errors,
         ) as streams:
@@ -94,7 +105,7 @@ def handshake(policy: Path) -> None:
 
 def doctor(path: Path) -> dict[str, object]:
     path = path.expanduser().absolute()
-    check_repository(load_policy(path))
+    check_repository(project_policy(load_policy(path)))
     handshake(path)
     return {"ok": True, "code": "READY", "message": MESSAGES["READY"]}
 
@@ -125,7 +136,7 @@ def setup(
                 "ECSS10_TEST_SECRET_DO_NOT_EXPOSE_",
             ),
         )
-    check_repository(policy)
+    check_repository(project_policy(policy))
     if create_policy:
         content = "# Generated local prototype policy. Review rules before use.\n"
         for key, value in policy.model_dump(mode="json").items():
