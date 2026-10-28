@@ -5,6 +5,10 @@ A standalone, read-only, policy-filtered Git history server for Linux, using the
 prototype. It minimizes Git data returned by this API; it does not isolate an
 agent from files accessible through other tools or processes.
 
+Requirements for the planned upstream-based successor, including all current
+features and separately enabled writes, are in [docs/FORK_REQUIREMENTS.md](docs/FORK_REQUIREMENTS.md).
+The current implementation remains read-only.
+
 ## Additional project denies
 
 A project can add restrictions through the standard `.mcp.json` registration `env`:
